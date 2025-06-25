@@ -1,0 +1,61 @@
+version: '3.9'
+
+services:
+  ldap:
+    image: osixia/openldap:1.5.0
+    container_name: ldap-server
+    environment:
+      LDAP_ORGANISATION: "RoosterDominos"
+      LDAP_DOMAIN: "Dominos.ede"
+      LDAP_ADMIN_PASSWORD: "nS65tn92sZTGtQB"
+    volumes:
+      - ldap-data:/var/lib/ldap
+      - ldap-config:/etc/ldap/slapd.d
+    networks:
+      - rooster-net
+
+  php:
+    build: ./php
+    container_name: php-backend
+    volumes:
+      - ./php/html:/var/www/html
+      - ./php/html/db:/var/www/html/db
+    environment:
+      LDAP_HOST: ldap://ldap-server
+      LDAP_BASE_DN: dc=Dominos,dc=ede
+    networks:
+      - rooster-net
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx-proxy
+    ports:
+      - "2398:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./php/html:/var/www/html:ro
+    depends_on:
+      - php
+    networks:
+      - rooster-net
+
+  phpldapadmin:
+    image: osixia/phpldapadmin:latest
+    container_name: LDAPAdmin
+    environment:
+      PHPLDAPADMIN_LDAP_HOSTS: ldap-server
+      PHPLDAPADMIN_HTTPS: "false"
+    ports:
+      - "2399:80"
+    depends_on:
+      - ldap
+    networks:
+      - rooster-net
+
+volumes:
+  ldap-data:
+  ldap-config:
+
+networks:
+  rooster-net:
+    driver: bridge
